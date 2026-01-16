@@ -1,0 +1,11 @@
+# Editor swap/backup files
+*~
+*.swp
+*.swo
+
+# macOS cruft
+.DS_Store
+
+# Perl build/test artifacts (just in case)
+*.bak
+*.old
