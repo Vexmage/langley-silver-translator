@@ -22,3 +22,14 @@ This project uses Perl intentionally as a “language of interpretation”:
 ```bash
 chmod +x ship.pl
 ./ship.pl
+
+
+## Project Status
+
+This project is being built incrementally in small, readable commits.
+
+- **Commit 1:** Runnable scaffold, story premise, and minimal input loop
+- **Commit 2:** World data structures (rooms, items, NPCs) and room rendering
+- **Next:** Regex-driven command interpretation and core actions (look/move/take/use)
+
+The code is intentionally kept in a single file for now to emphasize clarity over cleverness.
