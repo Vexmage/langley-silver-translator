@@ -5,7 +5,8 @@ use feature 'say';
 
 # Langley Silver & the Antediluvian Translator
 # Commit 2: world data structures + room rendering.
-# The command parser and gameplay actions arrive in later commits.
+# Commit 3: regex-driven command interpretation (translator layer).
+# Gameplay actions arrive in later commits.
 
 # -----------------------------
 # Player state (scalars/arrays)
@@ -124,6 +125,62 @@ sub describe_room {
   say "Exits: " . join(", ", @exits);
 }
 
+# -----------------------------
+# Regex-driven parser (translator layer)
+# -----------------------------
+sub parse_command {
+  my ($raw) = @_;
+  $raw //= '';
+  $raw =~ s/^\s+|\s+$//g;
+
+  my $input = lc $raw;
+
+  # Strip common filler words to simulate "intent parsing"
+  $input =~ s/\b(the|a|an|to|please|kindly|just)\b//g;
+  $input =~ s/\s+/ /g;
+  $input =~ s/^\s+|\s+$//g;
+
+  # Ordered patterns: first match wins.
+  my @patterns = (
+    [ qr/^(help|\?)$/ ,                 sub { return { action => 'HELP' } } ],
+    [ qr/^(quit|exit)$/ ,               sub { return { action => 'QUIT' } } ],
+    [ qr/^(inv|inventory|i)$/ ,         sub { return { action => 'INVENTORY' } } ],
+
+    # LOOK / EXAMINE
+    [ qr/^(look|l)$/ ,                  sub { return { action => 'LOOK' } } ],
+    [ qr/^(look|l|examine|inspect)\s+(?:at\s+)?(.+)$/ ,
+                                       sub { return { action => 'LOOK', target => $_[0] } } ],
+
+    # MOVE
+    [ qr/^(go|move|walk|run)\s+(.+)$/ ,
+                                       sub { return { action => 'MOVE', target => $_[0] } } ],
+    [ qr/^(up|down|fore|aft|hatch)$/ ,
+                                       sub { return { action => 'MOVE', target => $_[0] } } ],
+
+    # TAKE
+    [ qr/^(take|get|grab|pick\s+up)\s+(.+)$/ ,
+                                       sub { return { action => 'TAKE', target => $_[0] } } ],
+
+    # TALK
+    [ qr/^(talk|speak)\s+(?:to\s+)?(.+)$/ ,
+                                       sub { return { action => 'TALK', target => $_[0] } } ],
+
+    # USE
+    [ qr/^(use)\s+(.+?)(?:\s+on\s+(.+))?$/ ,
+                                       sub { return { action => 'USE', item => $_[0], target => $_[1] } } ],
+  );
+
+  for my $p (@patterns) {
+    my ($re, $mk) = @$p;
+    if ($input =~ $re) {
+      my @caps = ($1, $2, $3);
+      return $mk->(@caps);
+    }
+  }
+
+  return { action => 'UNKNOWN', raw => $raw };
+}
+
 sub show_help {
   say "";
   say "Available commands (stub):";
@@ -150,14 +207,14 @@ sub intro {
   say "";
   say $NPCS{langley}{dialog}{hint};
 
-  # For commit 2, we keep translator “implicit” (not in inventory yet).
+  # For commit 2/3, we keep translator “implicit” (not in inventory yet).
   # Later commits can model it as a permanent item flag if you want.
 
   describe_room();
 }
 
 # -----------------------------
-# Main loop (still a stub for now)
+# Main loop (parser is live; actions are stubbed)
 # -----------------------------
 intro();
 
@@ -169,16 +226,22 @@ while (1) {
   chomp($raw);
   $raw =~ s/^\s+|\s+$//g;
 
-  my $lc = lc $raw;
+  next if $raw eq '';
 
-  if ($lc eq '') {
-    next;
-  } elsif ($lc eq 'help' || $lc eq '?') {
+  my $cmd = parse_command($raw);
+
+  if ($cmd->{action} eq 'HELP') {
     show_help();
-  } elsif ($lc eq 'quit' || $lc eq 'exit') {
+  } elsif ($cmd->{action} eq 'QUIT') {
     say "You bow out. The ship creaks approvingly.";
     last;
+  } elsif ($cmd->{action} eq 'UNKNOWN') {
+    say "The translator clicks softly. It cannot parse that. Try 'help'.";
   } else {
-    say "Not implemented yet. Try 'help'.";
+    # Commit 3 stub: show the interpreted intent, but don't execute gameplay yet.
+    my $msg = "Parsed: $cmd->{action}";
+    $msg .= " target='$cmd->{target}'" if defined $cmd->{target};
+    $msg .= " item='$cmd->{item}'"     if defined $cmd->{item};
+    say "$msg (not implemented yet)";
   }
 }
